@@ -109,9 +109,7 @@ async function login() {
 }
 
 async function loadUsers() {
-  const res = await fetch('https://urms-admin-api.onrender.com/all-users');
-  const data = await res.json();
-
+  const { data } = await supabaseClient.from('profiles').select('*');
   adminUsers.innerHTML = data.map(u => `
     <div>
       ${u.full_name} (${u.student_number})
@@ -121,7 +119,7 @@ async function loadUsers() {
 }
 
 async function deleteUser(user_id, student_number) {
-  await fetch('https://urms-admin-api.onrender.com/all-users'), {
+  await fetch('http://localhost:3000/delete-user', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ user_id, student_number })
