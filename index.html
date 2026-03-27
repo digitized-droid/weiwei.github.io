@@ -2,41 +2,158 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Admin Panel</title>
+<title>Library Login</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 body { font-family: Arial; padding:20px; }
-button { padding:10px; margin:5px 0; }
+input { display:block; margin:10px 0; padding:8px; width:280px; }
+button { padding:10px; }
+small { color: gray; }
 </style>
 </head>
 <body>
+
+<h2>Sign Up</h2>
+<input id="su_student" placeholder="Student Number">
+<input id="su_name" placeholder="Last Name, First Name MI">
+<input id="su_email" placeholder="Email">
+<input id="su_phone" placeholder="Phone">
+<input id="su_password" type="password" placeholder="Password">
+<button onclick="signUp()">Register</button>
+
+<hr>
+
+<h2>Login</h2>
+<input id="li_student" placeholder="Student Number">
+<input id="li_email" placeholder="Email">
+<input id="li_password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+
+<hr>
 
 <h2>Admin Panel</h2>
 <button onclick="loadUsers()">Load Users</button>
 <div id="adminUsers"></div>
 
 <script>
+const { createClient } = window.supabase;
+
+const supabaseClient = createClient(
+  "https://vwzhzycagqqhcxbopjtc.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3emh6eWNhZ3FxaGN4Ym9wanRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NjI4NjEsImV4cCI6MjA5MDEzODg2MX0.KajiaXQecd-Icu6D9XUKViBsRn4bldVfwoFeamog8ww"
+);
+
+function normalizeStudentNumber(num) {
+  return num.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
+}
+
+async function signUp() {
+  const student = normalizeStudentNumber(su_student.value);
+  const name = su_name.value.trim();
+  const email = su_email.value.trim();
+  const phone = su_phone.value.trim();
+  const password = su_password.value;
+
+  // 1️⃣ Create auth user
+  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  if (error) return alert(error.message);
+
+  const user = data.user;
+
+  // 2️⃣ Insert into profiles table
+  const { error: profileError } = await supabaseClient
+    .from('profiles')
+    .insert({
+      id: user.id,
+      full_name: name,
+      student_number: student,
+      email: email,
+      phone: phone,
+      role: 'user'
+    });
+
+  if (profileError) {
+    alert(profileError.message);
+    return;
+  }
+
+  alert("Registered successfully!");
+}
+
+async function login() {
+  const student = normalizeStudentNumber(li_student.value);
+  const email = li_email.value.trim();
+  const password = li_password.value;
+
+  const { data, error } =
+    await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (error) return alert(error.message);
+
+  const { data: profiles } = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", data.user.id);
+
+  const profile = profiles.find(p =>
+    normalizeStudentNumber(p.student_number) === student
+  );
+
+  if (!profile) {
+    alert("Student number mismatch");
+    await supabaseClient.auth.signOut();
+    return;
+  }
+
+  alert(profile.role === "admin" ? "Welcome Admin!" : "Welcome User!");
+}
+
 async function loadUsers() {
   const res = await fetch('http://localhost:3000/all-users');
   const data = await res.json();
 
-  adminUsers.innerHTML = data.map(u => `
-    <div>
+  const container = document.getElementById('adminUsers');
+  container.innerHTML = '';
+
+  data.forEach(u => {
+    const row = document.createElement('div');
+    row.innerHTML = `
       ${u.full_name} (${u.student_number})
-      <button onclick="deleteUser('${u.id}','${u.student_number}')">Delete</button>
-    </div>
-  `).join('');
+      <button>Delete</button>
+    `;
+
+    const btn = row.querySelector('button');
+    btn.addEventListener('click', () => {
+      deleteUser(u.id, u.student_number);
+    });
+
+    container.appendChild(row);
+  });
 }
 
 async function deleteUser(user_id, student_number) {
-  await fetch('http://localhost:3000/delete-user', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ user_id, student_number })
-  });
+  try {
+    const res = await fetch('http://localhost:3000/delete-user', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id, student_number })
+    });
 
-  loadUsers();
+    const result = await res.json();
+    if (!res.ok) {
+      throw new Error(result.error || 'Failed to delete user');
+    }
+
+    alert('User deleted successfully');
+    loadUsers();
+  } catch (err) {
+    alert('Delete failed: ' + err.message);
+    console.error(err);
+  }
 }
 
+window.signUp = signUp;
+window.login = login;
 window.loadUsers = loadUsers;
 window.deleteUser = deleteUser;
 </script>
