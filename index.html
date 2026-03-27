@@ -109,7 +109,9 @@ async function login() {
 }
 
 async function loadUsers() {
-  const { data } = await supabaseClient.from('profiles').select('*');
+  const res = await fetch('http://localhost:3000/all-users');
+  const data = await res.json();
+
   adminUsers.innerHTML = data.map(u => `
     <div>
       ${u.full_name} (${u.student_number})
