@@ -109,47 +109,22 @@ async function login() {
 }
 
 async function loadUsers() {
-  const res = await fetch('http://localhost:3000/all-users');
-  const data = await res.json();
-
-  const container = document.getElementById('adminUsers');
-  container.innerHTML = '';
-
-  data.forEach(u => {
-    const row = document.createElement('div');
-    row.innerHTML = `
+  const { data } = await supabaseClient.from('profiles').select('*');
+  adminUsers.innerHTML = data.map(u => `
+    <div>
       ${u.full_name} (${u.student_number})
-      <button>Delete</button>
-    `;
-
-    const btn = row.querySelector('button');
-    btn.addEventListener('click', () => {
-      deleteUser(u.id, u.student_number);
-    });
-
-    container.appendChild(row);
-  });
+      <button onclick="deleteUser('${u.id}','${u.student_number}')">Delete</button>
+    </div>
+  `).join('');
 }
 
 async function deleteUser(user_id, student_number) {
-  try {
-    const res = await fetch('http://localhost:3000/delete-user', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ user_id, student_number })
-    });
-
-    const result = await res.json();
-    if (!res.ok) {
-      throw new Error(result.error || 'Failed to delete user');
-    }
-
-    alert('User deleted successfully');
-    loadUsers();
-  } catch (err) {
-    alert('Delete failed: ' + err.message);
-    console.error(err);
-  }
+  await fetch('http://localhost:3000/delete-user', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ user_id, student_number })
+  });
+  loadUsers();
 }
 
 window.signUp = signUp;
