@@ -132,12 +132,24 @@ async function loadUsers() {
 }
 
 async function deleteUser(user_id, student_number) {
-  await fetch('http://localhost:3000/delete-user', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ user_id, student_number })
-  });
-  loadUsers();
+  try {
+    const res = await fetch('http://localhost:3000/delete-user', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id, student_number })
+    });
+
+    const result = await res.json();
+    if (!res.ok) {
+      throw new Error(result.error || 'Failed to delete user');
+    }
+
+    alert('User deleted successfully');
+    loadUsers();
+  } catch (err) {
+    alert('Delete failed: ' + err.message);
+    console.error(err);
+  }
 }
 
 window.signUp = signUp;
