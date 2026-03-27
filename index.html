@@ -109,7 +109,7 @@ async function login() {
 }
 
 async function loadUsers() {
-  const res = await fetch('http://localhost:3000/all-users');
+  const res = await fetch('https://urms-admin-api.onrender.com/all-users');
   const data = await res.json();
 
   adminUsers.innerHTML = data.map(u => `
@@ -121,7 +121,7 @@ async function loadUsers() {
 }
 
 async function deleteUser(user_id, student_number) {
-  await fetch('http://localhost:3000/delete-user', {
+  await fetch('https://urms-admin-api.onrender.com/all-users'), {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ user_id, student_number })
