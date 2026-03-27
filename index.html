@@ -112,12 +112,23 @@ async function loadUsers() {
   const res = await fetch('http://localhost:3000/all-users');
   const data = await res.json();
 
-  adminUsers.innerHTML = data.map(u => `
-    <div>
+  const container = document.getElementById('adminUsers');
+  container.innerHTML = '';
+
+  data.forEach(u => {
+    const row = document.createElement('div');
+    row.innerHTML = `
       ${u.full_name} (${u.student_number})
-      <button onclick="deleteUser('${u.id}','${u.student_number}')">Delete</button>
-    </div>
-  `).join('');
+      <button>Delete</button>
+    `;
+
+    const btn = row.querySelector('button');
+    btn.addEventListener('click', () => {
+      deleteUser(u.id, u.student_number);
+    });
+
+    container.appendChild(row);
+  });
 }
 
 async function deleteUser(user_id, student_number) {
