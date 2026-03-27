@@ -1,111 +1,328 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="librarystyles.css">
-<title>About the University – URS Morong Campus Library</title>
+<title>Library Login</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body { font-family: Arial; padding:20px; }
+input { display:block; margin:10px 0; padding:8px; width:280px; }
+button { padding:10px; }
+small { color: gray; }
+</style>
 </head>
 
 <body>
 
-<header>
-    <div class="title">
-      <img src="urs logo.png" alt="URS Logo" class="myImage">
-    </div>
+<h2>Sign Up</h2>
 
-    <nav>
-      <div class="hamburger" onclick="toggleMenu()">☰</div>
+<input id="su_student" placeholder="Student Number">
 
-      <ul>
-        <li>
-          <span>About ▼</span>
-          <div class="dropdown">
-            <a href="university.html">University</a>
-            <a href="about/library directory">Library Directory</a>
-            <a href="#">Main Library</a>
-            <a href="#">College and Unit Libraries</a>
-            <a href="brief history.html">Brief History</a>
-            <a href="#">Statistical Profile</a>
-            <a href="#">Donate to the Library</a>
-          </div>
-        </li>
+<input 
+  id="su_name" 
+  placeholder="Last Name, First Name MI (e.g. Dela Cruz, Teromo)"
+>
+<small>Format: Last Name, First Name Middle Initial (optional)</small>
 
-        <li>
-          <span>Policies ▼</span>
-          <div class="dropdown">
-            <a href="#">General Policies</a>
-            <a href="#">Borrowing Rules</a>
-            <a href="#">Fines & Penalties</a>
-          </div>
-        </li>
+<input id="su_email" placeholder="Email">
+<input id="su_phone" placeholder="Phone">
+<input id="su_password" type="password" placeholder="Password">
 
-        <li>
-          <span>Request ▼</span>
-          <div class="dropdown">
-            <a href="#">Extended Reading</a>
-            <a href="#">Room Reservation</a>
-          </div>
-        </li>
+<button onclick="signUp()">Register</button>
 
-        <li>
-          <span>Search ▼</span>
-          <div class="dropdown">
-            <a href="#">Tuklas</a>
-            <a href="#">Online Databases</a>
-          </div>
-        </li>
+<hr>
 
-        <li>
-          <span>Inquire ▼</span>
-          <div class="dropdown">
-            <a href="#">Ask a Librarian</a>
-            <a href="#">FAQ</a>
-          </div>
-        </li>
+<h2>Login</h2>
 
-        <li>
-          <span>Publications ▼</span>
-          <div class="dropdown">
-            <a href="#">Bulletins</a>
-            <a href="#">Newsletters</a>
-          </div>
-        </li>
-      </ul>
-    </nav>
-</header>
-<picture>
-  <source srcset="Campus Mobile.png" media="(max-width: 900px)">
-  <img src="Campus Library.png" class="campus" alt="Campus Library">
-</picture>
-<footer></footer>
+<input id="li_student" placeholder="Student Number">
+<input id="li_email" placeholder="Email">
+<input id="li_password" type="password" placeholder="Password">
+
+<button onclick="login()">Login</button>
+
+<hr>
+<h2>Admin Panel - Manage Users</h2>
+<button onclick="loadUsers()">Load Users</button>
+<div id="adminUsers"></div>
 
 <script>
-function toggleMenu() {
-  const nav = document.querySelector("nav ul");
-  nav.style.display = (nav.style.display === "flex") ? "none" : "flex";
+
+
+// Correct supabaseClient initialization
+const { createClient } = window.supabase;
+
+const supabaseClient = createClient(
+  "https://vwzhzycagqqhcxbopjtc.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3emh6eWNhZ3FxaGN4Ym9wanRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NjI4NjEsImV4cCI6MjA5MDEzODg2MX0.KajiaXQecd-Icu6D9XUKViBsRn4bldVfwoFeamog8ww"
+);
+
+
+// Name format validator
+function validateNameFormat(name) {
+  const pattern = /^[A-Za-z\s]+,\s[A-Za-z\s]+(\s[A-Za-z]\.?)?$/;
+  return pattern.test(name);
 }
 
-// Mobile dropdown behavior
-document.querySelectorAll("nav ul li").forEach(item => {
-  item.addEventListener("click", e => {
-    if (window.innerWidth <= 900) {
-      let dropdown = item.querySelector(".dropdown");
-      dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
-      e.stopPropagation();
-    }
-  });
+function normalizeName(name) {
+  return name
+    .toLowerCase()
+    .replace(/[.,]/g, "")       // remove punctuation
+    .replace(/\s+/g, " ")       // normalize spaces
+    .trim();
+}
+
+function normalizeStudentNumber(num) {
+  return num
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/-/g, "");
+}
+
+// SIGN UP
+async function signUp() {
+
+  const studentRaw = document.getElementById("su_student").value.trim();
+  const student = normalizeStudentNumber(studentRaw);
+  const name = document.getElementById("su_name").value.trim();
+  const email = document.getElementById("su_email").value.trim();
+  const phone = document.getElementById("su_phone").value.trim();
+  const password = document.getElementById("su_password").value;
+
+  const normalizedInput = normalizeName(name);
+
+
+  const { data: students, error } = await supabaseClient
+    .from("students_masterlist")
+    .select("*");
+
+  if (error) {
+  console.error(error);
+  alert("Database error: " + error.message);
+  return;
+}
+
+
+  const studentData = students.find(s =>
+    normalizeStudentNumber(s.student_number) === student
+  );
+
+  if (!studentData) {
+    alert("Student number not found.");
+    return;
+  }
+
+
+  const normalizedDB = normalizeName(studentData.full_name);
+
+  if (!normalizedDB.includes(normalizedInput) &&
+      !normalizedInput.includes(normalizedDB)) {
+    alert("Student name does not match records.");
+    return;
+  }
+
+
+  if (studentData.is_registered) {
+    alert("This student is already registered.");
+    return;
+  }
+
+
+  const { data: authData, error: authError } =
+    await supabaseClient.auth.signUp({
+      email: email,
+      password: password
+    });
+
+  if (authError) {
+    alert(authError.message);
+    return;
+  }
+
+
+  const user = authData.user;
+
+
+  const { error: rpcError } = await supabaseClient.rpc('register_student', {
+  p_student_number: studentData.student_number,
+  p_full_name: studentData.full_name,
+  p_email: email,
+  p_phone: phone,
+  p_user_id: user.id
 });
 
-document.addEventListener("click", () => {
-  if (window.innerWidth <= 900) {
-    document.querySelectorAll(".dropdown").forEach(d => d.style.display = "none");
+if (rpcError) {
+  console.error(rpcError);
+  alert("Registration failed: " + rpcError.message);
+  return;
+}	
+
+
+  await supabaseClient
+    .from("students_masterlist")
+    .update({ is_registered: true })
+    .eq("student_number", studentData.student_number);
+
+  alert("Registration successful! Check your email.");
+}
+
+
+
+// LOGIN
+async function login() {
+
+  const student = normalizeStudentNumber(
+  document.getElementById("li_student").value
+);
+  const email = document.getElementById("li_email").value.trim();
+  const password = document.getElementById("li_password").value;
+
+  const { data, error } =
+    await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  const user = data.user;
+
+
+  const { data: profiles } = await supabaseClient
+  .from("profiles")
+  .select("*")
+  .eq("id", user.id);
+
+const profile = profiles.find(p =>
+  normalizeStudentNumber(p.student_number) === student
+);
+
+
+  if (!profile) {
+    alert("Student number mismatch.");
+    await supabaseClient.auth.signOut();
+    return;
+  }
+
+
+  if (profile.role === "admin") {
+    alert("Welcome Admin!");
+  } else {
+    alert("Welcome User!");
+  }
+
+}
+
+
+// expose functions globally for buttons
+window.signUp = signUp;
+window.login = login;
+
+
+//-------------ADMIN STUFF
+
+async function loadUsers() {
+  const { data: profiles, error } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .order('full_name');
+
+  if (error) {
+    alert('Failed to load users: ' + error.message);
+    return;
+  }
+
+  const container = document.getElementById('adminUsers');
+  container.innerHTML = '';
+
+  profiles.forEach(user => {
+    const div = document.createElement('div');
+    div.style.marginBottom = '10px';
+    div.innerHTML = `
+      <strong>${user.full_name}</strong> (${user.student_number}) - ${user.email} 
+      <button onclick="deleteUser('${user.id}', '${user.student_number}')">Delete</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function deleteUser(user_id, student_number) {
+  if (!confirm('Are you sure you want to delete this user?')) return;
+
+  try {
+    const res = await fetch('http://localhost:3000/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, student_number })
+    });
+    const result = await res.json();
+    if (result.error) {
+      alert('Error deleting user: ' + result.error);
+      return;
+    }
+    alert('User deleted successfully');
+    loadUsers(); // refresh list
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
+}
+
+
+
+// server.js
+import express from 'express';
+import { createClient } from '@supabase/supabase-js';
+import cors from 'cors';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const supabaseAdmin = createClient(
+  "https://vwzhzycagqqhcxbopjtc.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3emh6eWNhZ3FxaGN4Ym9wanRjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDU2Mjg2MSwiZXhwIjoyMDkwMTM4ODYxfQ.b07eMHXUVXOeqQtWnsWTk7F5VFFaRbIwHGc_iay6tiE
+
+);
+
+// Delete user by ID
+app.post('/delete-user', async (req, res) => {
+  const { user_id, student_number } = req.body;
+
+  if (!user_id || !student_number) {
+    return res.status(400).json({ error: 'Missing parameters' });
+  }
+
+  try {
+    // Delete user from Auth
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+    if (authError) throw authError;
+
+    // Delete profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', user_id);
+    if (profileError) throw profileError;
+
+    // Reset masterlist registration
+    const { error: masterError } = await supabaseAdmin
+      .from('students_masterlist')
+      .update({ is_registered: false })
+      .eq('student_number', student_number);
+    if (masterError) throw masterError;
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
+
+app.listen(3000, () => console.log('Admin API running on port 3000'));
 </script>
 
 </body>
 </html>
-
-
